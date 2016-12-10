@@ -22,6 +22,7 @@ while not stream.atEnd:
 
 var result = "";
 for i in 0..length:
+  resultArray[i].sort # not sure why it's needed, but does not work without it
   result = result & resultArray[i].smallest().key
 
 echo result
