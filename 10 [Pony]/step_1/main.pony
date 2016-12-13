@@ -4,8 +4,8 @@ use "collections"
 
 class Robot
   var _values: Array[I32] = Array[I32](2)
-  var _lower_receiver: (Robot | None)
-  var _higher_receiver: (Robot | None)
+  var _lower_receiver: (Robot | Output | None)
+  var _higher_receiver: (Robot | Output | None)
   let _id: I32
   let _env: Env
 
@@ -14,8 +14,8 @@ class Robot
     _values.push(value)
     perform()
 
-  fun ref set_lower_receiver(robot: (Robot | None)) => _lower_receiver = robot
-  fun ref set_higher_receiver(robot: (Robot | None)) => _higher_receiver = robot
+  fun ref set_lower_receiver(robot: (Robot | Output | None)) => _lower_receiver = robot
+  fun ref set_higher_receiver(robot: (Robot | Output | None)) => _higher_receiver = robot
 
   new create(id': I32, env': Env) =>
     _env = env'
@@ -42,12 +42,12 @@ class Robot
         end
 
         match _lower_receiver
-        | let r: Robot =>
+        | let r: (Robot | Output) =>
           r.add_value(smaller)
           r.perform()
         end
         match _higher_receiver
-        | let r: Robot =>
+        | let r: (Robot | Output) =>
           r.add_value(larger)
           r.perform()
         end
@@ -55,12 +55,26 @@ class Robot
       end
     end
 
+class Output
+  var _value: I32
+  let id: I32
+
+  fun ref add_value(value': I32) =>
+    _value = value'
+
+  fun value(): I32 => _value
+  fun perform() => None
+
+  new create(id': I32) =>
+    _value = -1
+    id = id'
+
 actor Main
   var robots: HashMap[I32, Robot, HashIs[I32]] = HashMap[I32, Robot, HashIs[I32]](1)
+  var outputs: HashMap[I32, Output, HashIs[I32]] = HashMap[I32, Output, HashIs[I32]](1)
 
   new create(env: Env) =>
     try
-      let output = Robot(-1, env)
       let auth = env.root as AmbientAuth
       let file = File(FilePath(auth, "input.txt"))
       for line in file.lines() do
@@ -72,7 +86,7 @@ actor Main
 
           let robot: (Robot | None) = get_robot(robot_num, env)
           match robot
-          | let r: Robot =>
+          | let r: (Robot | Output) =>
             r.add_value(value)
             r.perform()
           end
@@ -93,6 +107,7 @@ actor Main
               let low_bot = get_robot(low_id, env)
               b.set_lower_receiver(low_bot)
             else
+              let output = get_output(low_id)
               b.set_lower_receiver(output)
             end
 
@@ -100,6 +115,7 @@ actor Main
               let high_bot = get_robot(high_id, env)
               b.set_higher_receiver(high_bot)
             else
+              let output = get_output(high_id)
               b.set_higher_receiver(output)
             end
           end
@@ -109,6 +125,9 @@ actor Main
           bot.perform()
         end
       end
+
+      let mult = outputs(0).value() * outputs(1).value() * outputs(2).value()
+      env.out.print(mult.string())
     end
 
   fun ref get_robot(num: I32, env: Env): (Robot | None) =>
@@ -118,4 +137,13 @@ actor Main
         robots.insert(num, robot)
       end
       robots(num)
+    end
+
+  fun ref get_output(num: I32): (Output | None) =>
+    try
+      if not outputs.contains(num) then
+        let output = Output(num)
+        outputs.insert(num, output)
+      end
+      outputs(num)
     end
